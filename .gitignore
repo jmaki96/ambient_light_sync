@@ -1,6 +1,9 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
 
+# Virtual environment
+/venv/
+
 # Log files
 /core/generate/
 *.log
