@@ -10,12 +10,12 @@ class VerboseArgumentParser(argparse.ArgumentParser):
     """
 
     def parse_args(self, *args, **kwargs):
-        _logger.debug(f'Called like: python3 ' + ' '.join(sys.argv))
+        _logger.debug('Called like: python3 ' + ' '.join(sys.argv))
 
         _args = super(VerboseArgumentParser, self).parse_args(*args, **kwargs)
 
         _logger.debug('Args:')
         for arg in vars(_args):
             _logger.debug(f'\t{arg} = {getattr(_args, arg)}')
-        
+
         return _args
