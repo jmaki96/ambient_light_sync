@@ -9,7 +9,7 @@ import time
 load_dotenv()
 
 from core.lighting.hue.client import HueClient
-from core.settings import HUE_BRIDGE_ADDRESS
+from core.settings import HUE_BRIDGE_ADDRESS, HUE_BRIDGE_CERTIFICATE_PATH
 from core.verbose_argument_parser import VerboseArgumentParser
 
 _logger = logging.getLogger()
@@ -19,7 +19,7 @@ def test(args: argparse.Namespace):
     """ Tests all clients to ensure that connections are valid."""
 
     # Test Hue client
-    client = HueClient(HUE_BRIDGE_ADDRESS)
+    client = HueClient(HUE_BRIDGE_ADDRESS, bridge_certificate_path=HUE_BRIDGE_CERTIFICATE_PATH)
     client.test()
 
 

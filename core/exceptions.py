@@ -9,6 +9,17 @@ class LibraryException(Exception):
     pass
 
 
+class HueError(LibraryException):
+    """An error that is specific to the Hue API
+
+    https://developers.meethue.com/develop/hue-api-v2/getting-started/
+    """
+
+    def __init__(self, message: str, error_type: int):
+        self.error_type = error_type
+        super().__init__(message)
+
+
 class ConnectionException(LibraryException):
     """A ConnectionException indicates that a client failed to connect to the requested service. 
         It consumes an optional HTTP status code if available."""

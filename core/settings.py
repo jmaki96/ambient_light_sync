@@ -8,11 +8,15 @@ import os
 # ========================
 # === GENERAL SETTINGS ===
 # ========================
+APP_NAME = 'ambient_light_sync'
+
 DATESTRING = "%m%d%Y_%H%M%S"
 DATESTAMP = datetime.datetime.now().strftime(DATESTRING)
 
 # Directories
 ROOT_DIRECTORY = os.path.dirname(__file__)
+
+CERTIFICATE_DIRECTORY = os.path.join(os.path.dirname(ROOT_DIRECTORY), 'certificates')
 
 # All files that are generated during runtime are stored in this folder in various subfolders
 GENERATED_ASSETS_DIRECTORY = os.path.join(ROOT_DIRECTORY, "generated")
@@ -39,3 +43,4 @@ if not os.path.exists(TEMP_DIRECTORY):
 # === HUE SETTINGS ===
 # ====================
 HUE_BRIDGE_ADDRESS = os.environ.get('HUE_BRIDGE_ADDRESS')
+HUE_BRIDGE_CERTIFICATE_PATH = os.path.join(CERTIFICATE_DIRECTORY, 'hue_bridge_certificate.pem')

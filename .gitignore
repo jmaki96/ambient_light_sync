@@ -5,8 +5,9 @@ __pycache__/
 /venv/
 
 # Log files
-/core/generate/
+/core/generated/
 *.log
 
 # Secrets
 .env
+*.pem
