@@ -1,4 +1,4 @@
-""" Defines all common settings across projects and loads all credentials, erroring as appropriate
+""" Defines all common settings across projects
 """
 
 import datetime
@@ -33,3 +33,9 @@ if not os.path.exists(CACHE_DIRECTORY):
 
 if not os.path.exists(TEMP_DIRECTORY):
     os.makedirs(TEMP_DIRECTORY)
+
+
+# ====================
+# === HUE SETTINGS ===
+# ====================
+HUE_BRIDGE_ADDRESS = os.environ.get('HUE_BRIDGE_ADDRESS')
