@@ -13,6 +13,7 @@ from core.lighting.hue.enums import ResourceType
 from core.lighting.hue.objects.resource import Resource
 from core.lighting.hue.objects.device import Device
 from core.lighting.hue.objects.light import Light
+from core.lighting.hue.objects.entertainment_configuration import EntertainmentConfiguration
 from core.settings import APP_NAME, CACHE_DIRECTORY
 
 _logger = logging.getLogger(__name__)
@@ -58,6 +59,37 @@ class HueClient:
         """Construct the resource endpoint for the Hue API to hit."""
 
         return f'https://{self.bridge_ip_address}/clip/{self.api_version}/resource'
+
+    def _camel_to_snake(self, s: str) -> str:
+        """Utility function to convert Python class names to snake_case url paths.
+
+        Stolen from: https://www.geeksforgeeks.org/python-program-to-convert-camel-case-string-to-snake-case/
+
+        Args:
+            s (str): String to convert from CamelCase to snake_case
+
+        Returns:
+            str: snake_case string
+        """
+
+        def cameltosnake(camel_string: str) -> str:
+            # If the input string is empty, return an empty string
+            if not camel_string:
+                return ""
+            # If the first character of the input string is uppercase,
+            # add an underscore before it and make it lowercase
+            elif camel_string[0].isupper():
+                return f"_{camel_string[0].lower()}{cameltosnake(camel_string[1:])}"
+            # If the first character of the input string is lowercase,
+            # simply return it and call the function recursively on the remaining string
+            else:
+                return f"{camel_string[0]}{cameltosnake(camel_string[1:])}"
+
+        if len(s) <= 1:
+            return s.lower()
+        # Changing the first character of the input string to lowercase
+        # and calling the recursive function on the modified string
+        return cameltosnake(s[0].lower()+s[1:])
 
     def _parse_hue_api_response(self, response: requests.Response, raise_errors: bool) -> dict:
         """Parses a Response from the Hue API.
@@ -168,37 +200,26 @@ class HueClient:
             True
         )
     
-    def list_devices(self) -> List[Device]:
-        """Lists all available Devices,"""
 
-        response = self.get_resource('device')
+    def list(self, resource_class: DataClassJsonMixin) -> List[object]:
+        """Retrieves all resources of specified dataclass type. 
+        
+        Args:
+            resource_class (DataClassJsonMixin): the Dataclass for the specified resource to retrieve.
+        """
 
-        devices = []
+        response = self.get_resource(self._camel_to_snake(resource_class.__name__))
+
+        resources = []
         try:
-            for device_get_json in response['data']:
-                devices.append(Device.from_json(json.dumps(device_get_json)))
+            for get_json in response['data']:
+                resources.append(resource_class.from_json(json.dumps(get_json)))
         except KeyError as e:
             _logger.info('Unable to load response because of missing required fields. See debug log for details')
             _logger.debug(pprint.PrettyPrinter().pformat(response))
             raise e
         
-        return devices
-
-    def list_lights(self) -> List[Light]:
-        """Lists all available Lights."""
-
-        response = self.get_resource('light')
-
-        lights = []
-        try:
-            for light_get_json in response['data']:
-                lights.append(Light.from_json(json.dumps(light_get_json)))
-        except KeyError as e:
-            _logger.info('Unable to load response because of missing required fields. See debug log for details')
-            _logger.debug(pprint.PrettyPrinter().pformat(response))
-            raise e
-        
-        return lights
+        return resources
     
     def put_light(self, light: Light):
         """Takes data in Light dataclass and puts it to the bridge to update it.
@@ -213,12 +234,12 @@ class HueClient:
     def test(self):
         """ Tests connection to local Hue bridge. Raises Exceptions if a failure occurs."""
 
-        lights = self.list_lights()
+        lights: List[Light] = self.list(Light)
         light_index: Dict[str, Light] = {}  # Index Lights by their ID
         for light in lights:
             light_index[light.id] = light
         
-        devices = self.list_devices()
+        devices: List[Device] = self.list(Device)
 
         for device in devices:
             device_lights = device.get_resources_by_type(ResourceType.LIGHT)
@@ -228,6 +249,16 @@ class HueClient:
 
                 _logger.info(f'{device.metadata.name} - light_service {idx} {light.id} on: {light.on.on}')
 
-                if device.metadata.name == 'Jakes Lamp':
+                if device.metadata.name == 'Desk Lamp':
                     light.on.on = True
                     self.put_light(light)
+        
+        configurations: List[EntertainmentConfiguration] = self.list(EntertainmentConfiguration)
+        _logger.debug(configurations)
+        for configuration in configurations:
+            _logger.info(f'{configuration.metadata.name}')
+            for service_location in configuration.locations.service_locations:
+                light = light_index.get(service_location.service.rid)
+
+                if light:
+                    _logger.info(f'{configuration.metadata.name} configuration - light_service {idx} {light.id} on: {light.on.on}')

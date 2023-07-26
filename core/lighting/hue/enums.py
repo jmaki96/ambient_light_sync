@@ -54,6 +54,24 @@ class Archetype(Enum):
     WALL_WASHER='wall_washer'
 
 
+class EntertainmentConfigurationType(Enum):
+    SCREEN='screen'
+    MONITOR='monitor'
+    MUSIC='music'
+    THREEDSPACE='3dspace'
+    OTHER='other'
+
+
+class EntertainmentConfigurationStatus(Enum):
+    ACTIVE='active'
+    INACTIVE='inactive'
+
+
+class StreamProxyMode(Enum):
+    AUTO='auto'
+    MANUAL='manual'
+
+
 class SupportedDynamicStatus(Enum):
     DYNAMIC_PALETTE='dynamic_palette'
     NONE='none'
