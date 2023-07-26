@@ -1,9 +1,12 @@
+from dataclasses import dataclass
 import json
 import logging
 import os
 import pprint
-import requests
 from typing import Dict, List, Optional
+
+import requests
+from dataclasses_json import DataClassJsonMixin
 
 from core.exceptions import HueError
 from core.lighting.hue.enums import ResourceType
@@ -13,6 +16,12 @@ from core.lighting.hue.objects.light import Light
 from core.settings import APP_NAME, CACHE_DIRECTORY
 
 _logger = logging.getLogger(__name__)
+
+
+@dataclass
+class HueApplicationCredential(DataClassJsonMixin):
+    username: str
+    clientkey: str
 
 
 class HueClient:
@@ -39,7 +48,7 @@ class HueClient:
 
         if os.path.exists(self.__class__._HUE_APPLICATION_KEY):
             with open(self.__class__._HUE_APPLICATION_KEY, 'r') as key_file:
-                self._hue_application_key = key_file.read().strip()
+                self._hue_application_key = HueApplicationCredential.from_json(key_file.read().strip())
         else:
             self.request_application_key()
 
@@ -68,7 +77,12 @@ class HueClient:
 
         # Error handling
         if raise_errors:
+
+            # The name of the error field for Hue API responses is not consistent.
             hue_error = response_json.get('errors')
+            if not hue_error:
+                hue_error = response_json.get('error')
+            
             if hue_error and len(hue_error) > 0:
                 _logger.debug(pprint.PrettyPrinter().pformat(response_json))
                 raise HueError(hue_error['description'], hue_error['type'])
@@ -98,13 +112,11 @@ class HueClient:
         
         parsed_response = self._parse_hue_api_response(response, True)
 
-        # This method returns a username and a clientkey but puzzlingly, the client key is not required for authentication
-        username = parsed_response['success']['username']
+        self._hue_application_key = HueApplicationCredential.from_json(json.dumps(parsed_response['success']))
 
-        self._hue_application_key = username
         if cache:
             with open(self.__class__._HUE_APPLICATION_KEY, 'w') as key_file:
-                key_file.write(self._hue_application_key)
+                key_file.write(self._hue_application_key.to_json())
 
     def get_resource(self, resource_name: str) -> dict:
         """ Construct and send an HTTP GET request for specified resource
@@ -122,7 +134,7 @@ class HueClient:
             requests.get(
                 endpoint,
                 headers={
-                    'hue-application-key': self._hue_application_key
+                    'hue-application-key': self._hue_application_key.username
                 },
                 verify=False  # Frustratingly, my version of the Hue bridge does not support SSL
             ),
@@ -146,7 +158,7 @@ class HueClient:
             requests.put(
                 endpoint,
                 headers={
-                    'hue-application-key': self._hue_application_key
+                    'hue-application-key': self._hue_application_key.username
                 },
                 data=body,
                 verify=False  # Frustratingly, my version of the Hue bridge does not support SSL
