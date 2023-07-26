@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
+import json
 from typing import List, Optional
 
 from dataclasses_json import DataClassJsonMixin
@@ -121,19 +122,11 @@ class Light(DataClassJsonMixin):
     id_v1: Optional[str] = None
 
 
-    def to_put(
-        self,
-        on: bool = None,
-        dimming_brightness_delta: float = None
-    ) -> dict:
+    def to_put(self) -> dict:
         """Converts self into a JSON-style dict that is a valid PUT request to /resource/light"""
 
-        base_put_json = {}
-
-        if on:
-            base_put_json['on'] = {'on': on}
-        
-        if dimming_brightness_delta:
-            
-
-            base_put_json['dimming_delta'] = dimming_brightness_delta
+        return json.dumps({
+            'on': {
+                'on': self.on.on
+            }
+        })

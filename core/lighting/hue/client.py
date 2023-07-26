@@ -78,14 +78,16 @@ class HueClient:
         # Error handling
         if raise_errors:
 
-            # The name of the error field for Hue API responses is not consistent.
-            hue_error = response_json.get('errors')
-            if not hue_error:
+            # The name depends on whether or not there is more then 1 error
+            hue_errors = response_json.get('errors')
+            if hue_errors:
+                hue_error = hue_errors[0]
+            else:
                 hue_error = response_json.get('error')
             
-            if hue_error and len(hue_error) > 0:
+            if hue_error:
                 _logger.debug(pprint.PrettyPrinter().pformat(response_json))
-                raise HueError(hue_error['description'], hue_error['type'])
+                raise HueError(hue_error.get('description'), hue_error.get('type'))
 
             response.raise_for_status()
         
@@ -204,9 +206,9 @@ class HueClient:
         NOTE: https://developers.meethue.com/develop/hue-api-v2/api-reference/#resource_light__id__put
         """
 
+        _logger.info(light.to_put())
 
-
-        self.put_resource(f'light/{light.id}', light.to_dict())
+        self.put_resource(f'light/{light.id}', light.to_put())
 
     def test(self):
         """ Tests connection to local Hue bridge. Raises Exceptions if a failure occurs."""
@@ -227,4 +229,5 @@ class HueClient:
                 _logger.info(f'{device.metadata.name} - light_service {idx} {light.id} on: {light.on.on}')
 
                 if device.metadata.name == 'Jakes Lamp':
+                    light.on.on = True
                     self.put_light(light)
