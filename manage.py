@@ -8,8 +8,9 @@ import time
 # Load environment variables before import settings file
 load_dotenv()
 
-from core.lighting.hue.client import HueClient
+# Import settings and configure logging
 from core.settings import HUE_BRIDGE_ADDRESS, HUE_BRIDGE_CERTIFICATE_PATH
+from core.lighting.hue.client import HueClient
 from core.verbose_argument_parser import VerboseArgumentParser
 
 _logger = logging.getLogger()

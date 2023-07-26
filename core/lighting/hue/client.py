@@ -1,11 +1,18 @@
-from http import HTTPMethod
 import json
+import logging
 import os
+import pprint
 import requests
-from typing import Optional
+from typing import Dict, List, Optional
 
 from core.exceptions import HueError
+from core.lighting.hue.enums import ResourceType
+from core.lighting.hue.objects.resource import Resource
+from core.lighting.hue.objects.device import Device
+from core.lighting.hue.objects.light import Light
 from core.settings import APP_NAME, CACHE_DIRECTORY
+
+_logger = logging.getLogger(__name__)
 
 
 class HueClient:
@@ -61,8 +68,9 @@ class HueClient:
 
         # Error handling
         if raise_errors:
-            hue_error = response_json.get('error')
-            if hue_error:
+            hue_error = response_json.get('errors')
+            if hue_error and len(hue_error) > 0:
+                _logger.debug(pprint.PrettyPrinter().pformat(response_json))
                 raise HueError(hue_error['description'], hue_error['type'])
 
             response.raise_for_status()
@@ -98,11 +106,10 @@ class HueClient:
             with open(self.__class__._HUE_APPLICATION_KEY, 'w') as key_file:
                 key_file.write(self._hue_application_key)
 
-    def request_resource(self, http_method: HTTPMethod, resource_name: str) -> dict:
-        """ Construct and send an HTTP request for specified resource
+    def get_resource(self, resource_name: str) -> dict:
+        """ Construct and send an HTTP GET request for specified resource
 
         Args:
-            http_method (HTTPMethod): What method to use for the request
             resource_name (str): The name of the resource requested
 
         Returns:
@@ -111,26 +118,101 @@ class HueClient:
 
         endpoint = self.resource_endpoint + '/' + resource_name
 
-        kwargs = {}
-
-        if self.bridge_certificate_path:
-            kwargs['verify'] = self.bridge_certificate_path
-
-        # This feels awful hacky - think about alternatives
-        if http_method == HTTPMethod.GET:
-            return self._parse_hue_api_response(
-                requests.get(
-                    endpoint,
-                    headers={
-                        'hue-application-key': self._hue_application_key
-                    },
-                    verify=False  # Frustratingly, my version of the Hue bridge does not support SSL
-                ),
-                True
-            )
-            
+        return self._parse_hue_api_response(
+            requests.get(
+                endpoint,
+                headers={
+                    'hue-application-key': self._hue_application_key
+                },
+                verify=False  # Frustratingly, my version of the Hue bridge does not support SSL
+            ),
+            True
+        )
     
+    def put_resource(self, resource_name: str, body: object) -> dict:
+        """ Construct and send an HTTP PUT request for specified resource
+
+        Args:
+            resource_name (str): The name of the resource requested
+            body (object): JSON-style object to send as the body of the PUT request
+
+        Returns:
+            requests.Response: the HTTP response
+        """
+
+        endpoint = self.resource_endpoint + '/' + resource_name
+        
+        return self._parse_hue_api_response(
+            requests.put(
+                endpoint,
+                headers={
+                    'hue-application-key': self._hue_application_key
+                },
+                data=body,
+                verify=False  # Frustratingly, my version of the Hue bridge does not support SSL
+            ),
+            True
+        )
+    
+    def list_devices(self) -> List[Device]:
+        """Lists all available Devices,"""
+
+        response = self.get_resource('device')
+
+        devices = []
+        try:
+            for device_get_json in response['data']:
+                devices.append(Device.from_json(json.dumps(device_get_json)))
+        except KeyError as e:
+            _logger.info('Unable to load response because of missing required fields. See debug log for details')
+            _logger.debug(pprint.PrettyPrinter().pformat(response))
+            raise e
+        
+        return devices
+
+    def list_lights(self) -> List[Light]:
+        """Lists all available Lights."""
+
+        response = self.get_resource('light')
+
+        lights = []
+        try:
+            for light_get_json in response['data']:
+                lights.append(Light.from_json(json.dumps(light_get_json)))
+        except KeyError as e:
+            _logger.info('Unable to load response because of missing required fields. See debug log for details')
+            _logger.debug(pprint.PrettyPrinter().pformat(response))
+            raise e
+        
+        return lights
+    
+    def put_light(self, light: Light):
+        """Takes data in Light dataclass and puts it to the bridge to update it.
+        
+        NOTE: https://developers.meethue.com/develop/hue-api-v2/api-reference/#resource_light__id__put
+        """
+
+
+
+        self.put_resource(f'light/{light.id}', light.to_dict())
+
     def test(self):
         """ Tests connection to local Hue bridge. Raises Exceptions if a failure occurs."""
+
+        lights = self.list_lights()
+        light_index: Dict[str, Light] = {}  # Index Lights by their ID
+        for light in lights:
+            light_index[light.id] = light
         
-        response = self.request_resource(HTTPMethod.GET, 'device')
+        devices = self.list_devices()
+
+        for device in devices:
+            device_lights = device.get_resources_by_type(ResourceType.LIGHT)
+
+            for idx, light_service in enumerate(device_lights):
+                light = light_index.get(light_service.rid)
+
+                _logger.info(f'{device.metadata.name} - light_service {idx} {light.id} on: {light.on.on}')
+
+                if device.metadata.name == 'Jakes Lamp':
+                    self.put_light(light)
